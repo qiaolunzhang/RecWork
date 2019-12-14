@@ -29,6 +29,10 @@ from Base.BaseSimilarityMatrixRecommender import BaseItemSimilarityMatrixRecomme
 from Base.Recommender_utils import check_matrix, similarityMatrixTopK
 from KNN.ItemKNNCFRecommender import ItemKNNCFRecommender
 from GraphBased.P3alphaRecommender import P3alphaRecommender
+from datetime import datetime
+from Base.NonPersonalizedRecommender import TopPop
+
+
 
 # Define the hybrid class
 
@@ -101,6 +105,55 @@ def get_ICM(ICM_path, URM_all):
     ICM_all = sps.coo_matrix((ones, (itemList_icm_sub_class, featureList_icm_sub_class)), shape=ICM_shape)
     ICM_all = ICM_all.tocsr()
     return ICM_all, n_items, n_features
+
+
+def test_save(recommender, top_recommender, data_file_path, warm_users):
+    test_path = data_file_path
+    test_num = open(test_path, 'r')
+    test_tuples = []
+    idx = 0
+    for aline in test_num:
+        if idx:
+            test_tuples.append(aline.replace("\n", ""))
+        idx = idx + 1
+
+    result = {}
+    label = 0
+    for user_idx in test_tuples:
+        # for user_id in range(n_users_to_test):
+        user_idx = int(user_idx)
+        if user_idx in warm_users:
+            # change warm_users id to the id in the recommender
+            recommend_id = int(np.where(warm_users == user_idx)[0])
+            rate = recommender.recommend(recommend_id, cutoff=10)
+        else:
+            rate = top_recommender.recommend(user_idx, cutoff=10)
+        if user_idx % 3000 == 0:
+            label = label + 1
+            print('---------------{}0----------------'.format(label))
+        result[user_idx] = rate
+    return result
+
+
+def create_csv(results, result_name, results_dir='./res/', ):
+
+    csv_fname = result_name + datetime.now().strftime('%b%d_%H-%M-%S') + '.csv'
+
+    with open(os.path.join(results_dir, csv_fname), 'w') as f:
+        # masterList, temp = [], []
+        # writer = csv.writer(f,delimiter=',')
+        # for key, value in results.items():
+        #     temp = [key, value]
+        #     masterList.append(temp)
+        #     writer.writerows(masterList)
+        f.write('user_id,item_list\n')
+
+        for key, value in results.items():
+            nor_v = ""
+            for i in value:
+                nor_v = nor_v + str(i) + " "
+            f.write(str(key) + ',' + nor_v + '\n')
+
 
 data_file_path = "./data"
 URM_path = data_file_path + "/data_train.csv"
@@ -208,17 +261,21 @@ ICM_all, n_items, n_features = get_ICM(ICM_sub_class, URM_all)
 print("Number of items is ", str(n_items))
 print("n_features is ", str(n_features))
 
+warm_users_mask = np.ediff1d(URM_all.tocsr().indptr) > 0
+warm_users = np.arange(URM_all.shape[0])[warm_users_mask]
 
 
 
 
-userCFParam = {'topK': 525, 'shrink': 0, 'similarity': 'cosine', 'normalize': True}
+
+#itemCFParam = {'topK': 525, 'shrink': 0, 'similarity': 'cosine', 'normalize': True}
+itemCFParam = {'topK': 671, 'shrink': 183, 'similarity': 'jaccard', 'normalize': True}
 slimParam = {'topK': 22, 'epochs': 999, 'sgd_mode': 'adagrad', 'symmetric': False, 'lambda_i': 0.008363589, 'lambda_j': 0.003058426, 'learning_rate': 0.000102219, 'batch_size': 1500}
 p3Param = {'topK': 64, 'alpha': 0.5626527178823623, 'min_rating': 0.4999280105627021, 'implicit': [False, False, False]}
 userCFParamList = []
 slimParamList = []
 p3ParamList = []
-userCFParamList.append(userCFParam)
+userCFParamList.append(itemCFParam)
 slimParamList.append(slimParam)
 p3ParamList.append(p3Param)
 
@@ -232,7 +289,7 @@ mapLists = np.zeros((num_seperates, num_seperates))
 for _ in range(num_iterations):
     URM_train, URM_test = train_test_holdout(URM_all, train_perc=0.8)
     itemCF_recommender = (URM_train)
-    itemCF_recommender.fit(**userCFParam)
+    itemCF_recommender.fit(**itemCFParam)
     slim_recommender = SLIM_BPR_Cython(URM_train, recompile_cython=False)
     slimParam['epochs']=10
     slim_recommender.fit(**slimParam)
@@ -283,7 +340,7 @@ print("***************************Ensure the parameter is good******************
 
 URM_train, URM_test = train_test_holdout(URM_all, train_perc=0.8)
 itemCF_recommender = ItemKNNCFRecommender(URM_train)
-itemCF_recommender.fit(**userCFParam)
+itemCF_recommender.fit(**itemCFParam)
 slim_recommender = SLIM_BPR_Cython(URM_train, recompile_cython=False)
 slim_recommender.fit(**slimParam)
 p3_recommender = P3alphaRecommender(URM_train)
@@ -299,7 +356,7 @@ MAP = eval_res[0][10]['MAP']
 print("The MAP in one test is: ", MAP)
 
 itemCF_recommender = ItemKNNCFRecommender(URM_all)
-itemCF_recommender.fit(**userCFParam)
+itemCF_recommender.fit(**itemCFParam)
 slim_recommender = SLIM_BPR_Cython(URM_all, recompile_cython=False)
 slim_recommender.fit(**slimParam)
 p3_recommender = P3alphaRecommender(URM_all)
@@ -307,6 +364,12 @@ p3_recommender.fit(**p3Param)
 recommender1 = SimilarityHybridRecommender(URM_train, itemCF_recommender.W_sparse,
                                            slim_recommender.W_sparse, p3_recommender.W_sparse)
 recommender1.fit(topK=100, alpha1=alpha1, alpha2=alpha2, alpha3=alpha3)
+
+topPopRecommender = TopPop(URM_all)
+
+
+results_test = test_save(recommender1, topPopRecommender, test_path, warm_users)
+create_csv(results_test, 'Cold_Item_SLIM_BPR_parameter_tuning')
 
 
 
