@@ -396,7 +396,7 @@ slim_recommender = SLIM_BPR_Cython(URM_all, recompile_cython=False)
 slim_recommender.fit(**slimParam)
 p3_recommender = P3alphaRecommender(URM_all)
 p3_recommender.fit(**p3Param)
-recommender1 = SimilarityHybridRecommender(URM_train, itemCF_recommender.W_sparse,
+recommender1 = SimilarityHybridRecommender(URM_all, itemCF_recommender.W_sparse,
                                            slim_recommender.W_sparse, p3_recommender.W_sparse)
 recommender1.fit(topK=100, alpha1=alpha1, alpha2=alpha2, alpha3=alpha3)
 recommender1.save_model("model/", "hybrid_item_slim_basic")
