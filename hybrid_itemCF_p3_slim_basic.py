@@ -370,6 +370,7 @@ recommender1 = SimilarityHybridRecommender(URM_train, itemCF_recommender.W_spars
 recommender1.fit(topK=100, alpha1=alpha1, alpha2=alpha2, alpha3=alpha3)
 
 topPopRecommender = TopPop(URM_all)
+topPopRecommender.fit()
 
 
 results_test = test_save(recommender1, topPopRecommender, test_path, warm_users)
