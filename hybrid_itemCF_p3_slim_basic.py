@@ -291,7 +291,7 @@ num_seperates = 11
 num_iterations = 5
 mapLists = np.zeros((num_seperates, num_seperates))
 
-for _ in range(num_iterations):
+for curr_ite in range(num_iterations):
     URM_train, URM_test = train_test_holdout(URM_all, train_perc=0.8)
     itemCF_recommender = ItemKNNCFRecommender(URM_train)
     itemCF_recommender.fit(**itemCFParam)
@@ -317,8 +317,26 @@ for _ in range(num_iterations):
             evaluator_validation = EvaluatorHoldout(URM_test, cutoff_list=[10])
             eval_res = evaluator_validation.evaluateRecommender(recommender1)
             MAP = eval_res[0][10]['MAP']
-            print("The MAP is: ", MAP)
+            print("Current parameter is: alpha1=", str(alpha1), " alpha2=", str(alpha2),
+                  " alpha3=", str(alpha3))
+            print(str(curr_ite) + " iteration. The MAP is: ", MAP)
             mapLists[i][j] = mapLists[i][j] + MAP
+            if MAP > 0.048:
+                try:
+                    filename = "evalRes/hybrid_good_parameters.txt"
+                    if os.path.exists(filename):
+                        append_write = 'a'  # append if already exists
+                    else:
+                        append_write = 'w'  # make a new file if n
+                    with open(filename, append_write) as f:
+                        f.write(str(alpha1))
+                        f.write(", ")
+                        f.write(str(alpha2))
+                        f.write(", ")
+                        f.write((str(alpha3)))
+                        f.write(", ")
+                except:
+                    print("Error with writing the parameters")
 
 
 np.savetxt("./evalRes/map.csv", mapLists, delimiter=",")
