@@ -339,10 +339,10 @@ class TopUserTagPop(object):
         if user_age == 0 or user_region == 0:
             result = [17955, 8638, 5113, 10227, 4657, 197, 8982, 10466, 3922, 4361]
         else:
-            user_region = user_region - 1
+            #user_region = user_region - 1
             user_age = user_age - 1
-            devided_id_top = self.devided_top[int(user_region), int(user_age), :]
-            devided_id_top = devided_id_top.sum(axis=0)
+            devided_id_top = self.devided_top.sum(axis=0)
+            #devided_id_top = self.devided_top[int(user_region), int(user_age), :]
             devided_id_top = devided_id_top[int(user_age), :]
             top = devided_id_top.argsort()[-1*int(cutoff):][::-1]
             result = top.tolist()
