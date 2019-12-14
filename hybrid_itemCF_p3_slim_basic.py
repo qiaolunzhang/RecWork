@@ -124,8 +124,8 @@ def test_save(recommender, top_recommender, data_file_path, warm_users):
         user_idx = int(user_idx)
         if user_idx in warm_users:
             # change warm_users id to the id in the recommender
-            recommend_id = int(np.where(warm_users == user_idx)[0])
-            rate = recommender.recommend(recommend_id, cutoff=10)
+            # recommend_id = int(np.where(warm_users == user_idx)[0])
+            rate = recommender.recommend(user_idx, cutoff=10)
         else:
             rate = top_recommender.recommend(user_idx, cutoff=10)
         if user_idx % 3000 == 0:
