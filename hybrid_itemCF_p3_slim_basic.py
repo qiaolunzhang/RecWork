@@ -399,7 +399,7 @@ p3_recommender.fit(**p3Param)
 recommender1 = SimilarityHybridRecommender(URM_train, itemCF_recommender.W_sparse,
                                            slim_recommender.W_sparse, p3_recommender.W_sparse)
 recommender1.fit(topK=100, alpha1=alpha1, alpha2=alpha2, alpha3=alpha3)
-recommender1.save_model(recommender1, "model/", "hybrid_item_slim_basic")
+recommender1.save_model("model/", "hybrid_item_slim_basic")
 
 topPopRecommender = TopPop(URM_all)
 topPopRecommender.fit()
