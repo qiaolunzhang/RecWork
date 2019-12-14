@@ -19,7 +19,9 @@ from ParameterTuning.SearchBayesianSkopt import SearchBayesianSkopt
 from Base.DataIO import DataIO
 from ParameterTuning.SearchAbstractClass import SearchInputRecommenderArgs
 from skopt.space import Real, Integer, Categorical
-from Base.Evaluation.Evaluator import EvaluatorHoldout
+from GraphBased.RP3betaRecommender import RP3betaRecommender
+from SLIM_BPR.Cython.SLIM_BPR_Cython import SLIM_BPR_Cython
+from KNN.UserKNNCFRecommender import UserKNNCFRecommender
 
 
 def rowSplit(rowString, numColumns):
@@ -117,84 +119,76 @@ from Notebooks_utils.data_splitter import train_test_holdout
 URM_train, URM_test = train_test_holdout(URM_all, train_perc = 0.8)
 URM_train, URM_validation = train_test_holdout(URM_train, train_perc = 0.9)
 
+sps.save_npz("./result_experiments/URM_all.npz", URM_all)
+sps.save_npz("./result_experiments/URM_train.npz", URM_train)
+sps.save_npz("./result_experiments/URM_test.npz", URM_test)
+
+slim_best_parameters = {'topK': 1000, 'epochs': 199, 'symmetric': True, 'sgd_mode': 'adagrad', 'lambda_i': 1e-05, 'lambda_j': 0.01, 'learning_rate': 0.0001}
+rp3_best_parameters = {"topK": 44, "alpha": 0.0410753731972553, "beta": 0.019312081484212932, "normalize_similarity": True}
+userKNNCF_best_parameters = {"topK": 466, "shrink": 9, "similarity": "dice", "normalize": False}
 
 
+URM_train = sps.csr_matrix(URM_train)
+profile_length = np.ediff1d(URM_train.indptr)
+block_size = int(len(profile_length)*0.05)
+sorted_users = np.argsort(profile_length)
 
-evaluator_validation = EvaluatorHoldout(URM_validation, cutoff_list=[10])
-evaluator_test = EvaluatorHoldout(URM_test, cutoff_list=[10])
+slim_model = SLIM_BPR_Cython(URM_train,recompile_cython=False)
+slim_model.fit(**slim_best_parameters)
+rp3_model = RP3betaRecommender(URM_train)
+rp3_model.fit(**rp3_best_parameters)
+userCF_model = UserKNNCFRecommender(URM_train)
+userCF_model.fit(**userKNNCF_best_parameters)
 
-
-recommender_class = ItemKNNCFRecommender
-
-parameterSearch = SearchBayesianSkopt(recommender_class,
-                                 evaluator_validation=evaluator_validation,
-                                 evaluator_test=evaluator_test)
-
-
-output_folder_path = "result_experiments/"
-
-
-# If directory does not exist, create
-if not os.path.exists(output_folder_path):
-    os.makedirs(output_folder_path)
+MAP_slim_per_group = []
+MAP_rp3_per_group = []
+MAP_userCF_per_group = []
+cutoff = 10
 
 
-evaluator_validation = EvaluatorHoldout(URM_validation, cutoff_list=[10])
-evaluator_test = EvaluatorHoldout(URM_test, cutoff_list=[10])
+URM_train = sps.csr_matrix(URM_train)
+profile_length = np.ediff1d(URM_train.indptr)
+block_size = int(len(profile_length)*0.05)
+sorted_users = np.argsort(profile_length)
 
-hyperparameters_range_dictionary = {}
-hyperparameters_range_dictionary["topK"] = Integer(5, 1000)
-hyperparameters_range_dictionary["shrink"] = Integer(0, 1000)
-hyperparameters_range_dictionary["similarity"] = Categorical(['cosine', 'jaccard', "asymmetric", "dice", "tversky"])
-hyperparameters_range_dictionary["normalize"] = Categorical([True, False])
+for group_id in range(0, 20):
+    start_pos = group_id * block_size
+    end_pos = min((group_id + 1) * block_size, len(profile_length))
 
-#runParameterSearch_Collaborative(UserKNNCFRecommender, URM_train, URM_test, metric_to_optimize="MAP",
-#                                 n_cases=100, evaluator_validation=evaluator_validation,
-#                                 evaluator_test=evaluator_test, )
-recommender_input_args = SearchInputRecommenderArgs(
-    CONSTRUCTOR_POSITIONAL_ARGS = [URM_train],
-    CONSTRUCTOR_KEYWORD_ARGS = {},
-    FIT_POSITIONAL_ARGS = [],
-    FIT_KEYWORD_ARGS = {}
-)
+    users_in_group = sorted_users[start_pos:end_pos]
 
+    users_in_group_p_len = profile_length[users_in_group]
 
-output_folder_path = "result_experiments/"
+    print("Group {}, average p.len {:.2f}, min {}, max {}".format(group_id,
+                                                                  users_in_group_p_len.mean(),
+                                                                  users_in_group_p_len.min(),
+                                                                  users_in_group_p_len.max()))
 
-import os
+    users_not_in_group_flag = np.isin(sorted_users, users_in_group, invert=True)
+    users_not_in_group = sorted_users[users_not_in_group_flag]
 
-# If directory does not exist, create
-if not os.path.exists(output_folder_path):
-    os.makedirs(output_folder_path)
+    evaluator_test = EvaluatorHoldout(URM_test, cutoff_list=[cutoff], ignore_users=users_not_in_group)
 
-n_cases = 300
-metric_to_optimize = "MAP"
+    results, _ = evaluator_test.evaluateRecommender(slim_model)
+    MAP_slim_per_group.append(results[cutoff]["MAP"])
 
-parameterSearch.search(recommender_input_args,
-                       parameter_search_space = hyperparameters_range_dictionary,
-                       n_cases = n_cases,
-                       n_random_starts = 5,
-                       save_model = "no",
-                       output_folder_path = output_folder_path,
-                       output_file_name_root = recommender_class.RECOMMENDER_NAME,
-                       metric_to_optimize = metric_to_optimize
-                      )
+    results, _ = evaluator_test.evaluateRecommender(rp3_model)
+    MAP_rp3_per_group.append(results[cutoff]["MAP"])
+
+    results, _ = evaluator_test.evaluateRecommender(userCF_model)
+    MAP_userCF_per_group.append(results[cutoff]["MAP"])
+
+slim_model.save_model("./result_experiments/results_ensemble/", "slim_1")
+rp3_model.save_model("./result_experiments/results_ensemble/", "rp3_1")
+userCF_model.save_model("./result_experiments/results_ensemble/", "userCF_1")
 
 
-data_loader = DataIO(folder_path = output_folder_path)
-search_metadata = data_loader.load_data(recommender_class.RECOMMENDER_NAME + "_metadata.zip")
+import matplotlib.pyplot as pyplot
 
-print(search_metadata)
-
-parameterSearchResultPath = output_folder_path + "ParameterSearchResult/"
-if not os.path.exists(parameterSearchResultPath):
-    os.makedirs(parameterSearchResultPath)
-
-with open(parameterSearchResultPath+recommender_class.RECOMMENDER_NAME+'search_metadata.txt', 'w') as f:
-    f.write(json.dumps(search_metadata))
-
-best_parameters = search_metadata["hyperparameters_best"]
-print(best_parameters)
-
-with open(parameterSearchResultPath+recommender_class.RECOMMENDER_NAME+'hyperparameters_best.txt', 'w') as f:
-    f.write(json.dumps(best_parameters))
+pyplot.plot(MAP_slim_per_group, label="slim")
+pyplot.plot(MAP_rp3_per_group, label="rp3")
+pyplot.plot(MAP_userCF_per_group, label="userCF")
+pyplot.ylabel('MAP')
+pyplot.xlabel('User Group')
+pyplot.legend()
+pyplot.show()
