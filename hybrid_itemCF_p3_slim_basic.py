@@ -288,7 +288,7 @@ mapLists = np.zeros((num_seperates, num_seperates))
 
 for _ in range(num_iterations):
     URM_train, URM_test = train_test_holdout(URM_all, train_perc=0.8)
-    itemCF_recommender = (URM_train)
+    itemCF_recommender = ItemKNNCFRecommender(URM_train)
     itemCF_recommender.fit(**itemCFParam)
     slim_recommender = SLIM_BPR_Cython(URM_train, recompile_cython=False)
     slimParam['epochs']=10
