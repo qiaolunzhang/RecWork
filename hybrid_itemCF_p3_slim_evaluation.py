@@ -348,6 +348,20 @@ class TopUserTagPop(object):
             result = top.tolist()
         return result
 
+def rowSplit1(rowString):
+
+    split = rowString.split(",")
+    split[2] = split[2].replace("\n","")
+
+    split[0] = int(split[0])
+    split[1] = int(split[1])
+    split[2] = float(split[2])
+
+    result = tuple(split)
+
+    return result
+
+
 def getUserLabel(data_path):
     num_users = 30911
     # col 0 stands for region, row 0 stands for age
@@ -360,7 +374,7 @@ def getUserLabel(data_path):
     index = 0
     for line in region_file:
         if index:
-            userID, Region, feature = rowSplit(line)
+            userID, Region, feature = rowSplit1(line)
             user_feature_matrix[userID][0] = Region + 1
         index = index + 1
 
@@ -369,11 +383,12 @@ def getUserLabel(data_path):
     index = 0
     for line in age_file:
         if index:
-            userID, Age, feature = rowSplit(line)
+            userID, Age, feature = rowSplit1(line)
             user_feature_matrix[userID][1] = Age
         index = index + 1
 
     return user_feature_matrix
+
 
 user_feature_matrix = getUserLabel(data_file_path + "/")
 # topPopRecommender = GlobalEffects(URM_all)
