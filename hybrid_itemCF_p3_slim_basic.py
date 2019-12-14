@@ -335,6 +335,8 @@ for curr_ite in range(num_iterations):
                         f.write(", ")
                         f.write((str(alpha3)))
                         f.write(", ")
+                        f.write(str(MAP))
+                        f.write("\n")
                 except:
                     print("Error with writing the parameters")
 
