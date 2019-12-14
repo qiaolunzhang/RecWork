@@ -269,7 +269,10 @@ warm_users = np.arange(URM_all.shape[0])[warm_users_mask]
 
 
 #itemCFParam = {'topK': 525, 'shrink': 0, 'similarity': 'cosine', 'normalize': True}
-itemCFParam = {'topK': 671, 'shrink': 183, 'similarity': 'jaccard', 'normalize': True}
+# The following is not the best one
+#itemCFParam = {'topK': 671, 'shrink': 183, 'similarity': 'jaccard', 'normalize': True}
+# This is the best one for itemCFParam
+itemCFParam = {'topK': 12, 'shrink': 25, 'similarity': 'tversky', 'normalize': False}
 slimParam = {'topK': 22, 'epochs': 999, 'sgd_mode': 'adagrad', 'symmetric': False, 'lambda_i': 0.008363589, 'lambda_j': 0.003058426, 'learning_rate': 0.000102219, 'batch_size': 1500}
 p3Param = {'topK': 64, 'alpha': 0.5626527178823623, 'min_rating': 0.4999280105627021, 'implicit': [False, False, False]}
 userCFParamList = []
@@ -315,7 +318,7 @@ for _ in range(num_iterations):
             eval_res = evaluator_validation.evaluateRecommender(recommender1)
             MAP = eval_res[0][10]['MAP']
             print("The MAP is: ", MAP)
-            mapLists[i][j] = MAP
+            mapLists[i][j] = mapLists[i][j] + MAP
 
 
 np.savetxt("./evalRes/map.csv", mapLists, delimiter=",")
@@ -323,6 +326,7 @@ mapLists = mapLists / num_iterations
 np.savetxt("./evalRes/map_average.csv", mapLists, delimiter=",")
 print(mapLists)
 result = np.where(mapLists == np.amax(mapLists))
+average_map = np.amax(mapLists)
 
 #print('Tuple of arrays returned : ', result)
 
@@ -375,6 +379,7 @@ p3_recommender.fit(**p3Param)
 recommender1 = SimilarityHybridRecommender(URM_train, itemCF_recommender.W_sparse,
                                            slim_recommender.W_sparse, p3_recommender.W_sparse)
 recommender1.fit(topK=100, alpha1=alpha1, alpha2=alpha2, alpha3=alpha3)
+recommender1.save_model(recommender1, "model/", "hybrid_item_slim_basic")
 
 topPopRecommender = TopPop(URM_all)
 topPopRecommender.fit()
@@ -382,7 +387,9 @@ topPopRecommender.fit()
 
 results_test = test_save(recommender1, topPopRecommender, test_path, warm_users)
 create_csv(results_test, 'Cold_Item_SLIM_BPR_parameter_tuning')
-
+print("finished")
+print("The MAP in one test is: ", MAP)
+print("The average best MAP is: ", average_map)
 
 
 """
