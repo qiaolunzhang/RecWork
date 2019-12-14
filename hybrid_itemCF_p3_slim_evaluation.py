@@ -375,7 +375,7 @@ def getUserLabel(data_path):
 
     return user_feature_matrix
 
-user_feature_matrix = getUserLabel(data_file_path)
+user_feature_matrix = getUserLabel(data_file_path + "/")
 # topPopRecommender = GlobalEffects(URM_all)
 # topPopRecommender.fit()
 topPopRecommender = TopUserTagPop(URM_all, user_feature_matrix)
