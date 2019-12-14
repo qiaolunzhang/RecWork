@@ -282,8 +282,10 @@ p3ParamList.append(p3Param)
 
 
 
+#num_seperates = 3
 num_seperates = 11
-num_iterations = 1
+#num_iterations = 1
+num_iterations = 5
 mapLists = np.zeros((num_seperates, num_seperates))
 
 for _ in range(num_iterations):
@@ -291,7 +293,6 @@ for _ in range(num_iterations):
     itemCF_recommender = ItemKNNCFRecommender(URM_train)
     itemCF_recommender.fit(**itemCFParam)
     slim_recommender = SLIM_BPR_Cython(URM_train, recompile_cython=False)
-    slimParam['epochs']=10
     slim_recommender.fit(**slimParam)
     p3_recommender = P3alphaRecommender(URM_train)
     p3_recommender.fit(**p3Param)
@@ -316,7 +317,10 @@ for _ in range(num_iterations):
             print("The MAP is: ", MAP)
             mapLists[i][j] = MAP
 
+
+np.savetxt("./evalRes/map.csv", mapLists, delimiter=",")
 mapLists = mapLists / num_iterations
+np.savetxt("./evalRes/map_average.csv", mapLists, delimiter=",")
 print(mapLists)
 result = np.where(mapLists == np.amax(mapLists))
 
