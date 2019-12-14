@@ -338,6 +338,13 @@ alpha1 = i_max * 1.0 / (num_seperates - 1)
 alpha2 = (1 - alpha1) * j_max * 1.0 / (num_seperates - 1)
 alpha3 = 1 - alpha1 - alpha2
 alpha3 = 0 if alpha3 < 0 else alpha3
+with open("evalRes/alphas.txt", "w") as f:
+    f.write(str(alpha1))
+    f.write('\n')
+    f.write(str(alpha2))
+    f.write('\n')
+    f.write(str(alpha3))
+    f.write('\n')
 
 
 print("***************************Ensure the parameter is good**********************")
