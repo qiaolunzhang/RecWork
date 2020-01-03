@@ -369,7 +369,7 @@ def runParameterSearch_Collaborative(recommender_class, URM_train, URM_train_las
 
             hyperparameters_range_dictionary = {}
             hyperparameters_range_dictionary["sgd_mode"] = Categorical(["sgd", "adagrad", "adam"])
-            hyperparameters_range_dictionary["epochs"] = Categorical([500])
+            hyperparameters_range_dictionary["epochs"] = Categorical([100, 200, 300, 400, 500])
             hyperparameters_range_dictionary["use_bias"] = Categorical([True, False])
             hyperparameters_range_dictionary["batch_size"] = Categorical([1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024])
             hyperparameters_range_dictionary["num_factors"] = Integer(1, 200)
